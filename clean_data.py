@@ -75,7 +75,7 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.linear_model import LinearRegression
 model = TransformedTargetRegressor(LinearRegression(), transformer=StandardScaler())
 model.fit(housing[["median_income"]], housing_labels)
-predictions = model.predict(new_data)
+#predictions = model.predict(new_data)
 
 
 #Custom transformers/scalers 
@@ -126,12 +126,12 @@ num_attribes = ["longitude", "latitude", "housing_median_age", "total_rooms", "t
 cat_attribes = ["ocean_proximity"]
 
 #pipeline that transforms and then scales the catigorical data
-cat_pipline = make_pipeline(SimpleImputer(strategy="most_frequent"), OneHotEncoder())
+cat_pipeline = make_pipeline(SimpleImputer(strategy="most_frequent"), OneHotEncoder())
 
 #full pipeline that applies the catigorical pipeline to the catigorical data and the num pipeline to the numerical data
 full_pipeline = ColumnTransformer([
     ("num", num_pipeline, num_attribes),
-    ("cat", cat_pipline, cat_attribes)
+    ("cat", cat_pipeline, cat_attribes)
 ])
 
 #however, selecting all of the columns of certain types could be apain, so we can use a selector to do it for us
@@ -141,12 +141,37 @@ from sklearn.compose import make_column_selector, make_column_transformer
 
 preprocessing = make_column_transformer(
     (num_pipeline, make_column_selector(dtype_include=np.number)),
-    (cat_pipline, make_column_selector(dtype_include=object)))
+    (cat_pipeline, make_column_selector(dtype_include=object)))
 
 
 housing_prepared = preprocessing.fit_transform(housing)
 
 #left out one transformer that the book covers (cluseting a feature) here is the completed pipeline from the book
+
+from sklearn.cluster import KMeans
+from sklearn.base import BaseEstimator, TransformerMixin
+
+
+class ClusterSimilarity(BaseEstimator, TransformerMixin):
+
+
+    def __init__(self, n_clusters=10, gamma=1.0, random_state=None):
+        self.n_clusters = n_clusters
+        self.gamma = gamma
+        self.random_state = random_state
+
+    def fit(self, X, y=None, sample_weight=None):
+        self.kmeans_ = KMeans(self.n_clusters, n_init=10,
+                              random_state=self.random_state)
+        self.kmeans_.fit(X, sample_weight=sample_weight)
+        return self  # always return self!
+
+    def transform(self, X):
+        return rbf_kernel(X, self.kmeans_.cluster_centers_, gamma=self.gamma)
+    
+    def get_feature_names_out(self, names=None):
+        return [f"Cluster {i} similarity" for i in range(self.n_clusters)]
+
 def column_ratio(X):
     return X[:, [0]] / X[:, [1]]
 
